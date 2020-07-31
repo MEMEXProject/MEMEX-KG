@@ -1,0 +1,47 @@
+{
+    "audited_at": "2016-12-19T17:00:14.777Z", 
+    "audited_by": "73Q3j-BDvHrsirf6gPYT4w", 
+    "bbox": [
+        7.330958888888858, 
+        51.48882500000002, 
+        7.330958888888858, 
+        51.48882500000002
+    ], 
+    "changes": [
+        {
+            "from": {
+                "geometry": {
+                    "coordinates": [
+                        7.330958888888858, 
+                        51.48882500000002
+                    ], 
+                    "type": "Point"
+                }, 
+                "properties": {
+                    "ca": -1
+                }, 
+                "type": "Feature"
+            }, 
+            "image_key": "IguAE76Z8D0rjtGR5Dzctw", 
+            "to": {
+                "geometry": {
+                    "coordinates": [
+                        7.330958888888858, 
+                        51.48882500000002
+                    ], 
+                    "type": "Point"
+                }, 
+                "properties": {
+                    "ca": 320
+                }, 
+                "type": "Feature"
+            }
+        }
+    ], 
+    "key": "obWjkY7TGbstLRNy1qYRD7", 
+    "requested_at": "2016-12-18T18:01:11.336Z", 
+    "requested_by": "G8uqRa9O2T4trduNhZ9Wtw", 
+    "requested_by_bot": false, 
+    "state": "approved", 
+    "type": "location"
+}

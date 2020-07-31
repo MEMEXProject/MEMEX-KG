@@ -1,0 +1,45 @@
+{
+    "features": [
+        {
+            "geometry": {
+                "coordinates": [
+                    [
+                        18.562958, 
+                        4.374523
+                    ], 
+                    [
+                        18.562887, 
+                        4.37464
+                    ], 
+                    [
+                        18.562733, 
+                        4.374733
+                    ]
+                ], 
+                "type": "LineString"
+            }, 
+            "properties": {
+                "captured_at": "2016-03-17T09:08:24.783Z", 
+                "coordinateProperties": {
+                    "cas": [
+                        104.464, 
+                        49.9101, 
+                        49.2453
+                    ], 
+                    "image_keys": [
+                        "YWNnFth0_wsgw0uUrPYYrg", 
+                        "qvctr1XeO8OC9inpLseqww", 
+                        "1wkaCL7kRQLJWCz-Bb5VXw"
+                    ]
+                }, 
+                "created_at": "2016-03-17T10:27:40.699Z", 
+                "key": "udwRBHv1iQIt-O7kUS4FAA", 
+                "starred": false, 
+                "user_key": "AGfe-07BEJX0-kxpu9J3rA", 
+                "username": "pierregeo"
+            }, 
+            "type": "Feature"
+        }
+    ], 
+    "type": "FeatureCollection"
+}
