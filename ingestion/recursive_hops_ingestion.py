@@ -131,15 +131,16 @@ def extract_all_info(url):
 	"""
 	entity_id = url.split("/")[-1]  # extract wikidata id, e.g.: 'Q42'
 	r = requests.get(url=url)
-	if r.status_code == 200:
+	if (r.status_code == 200) and entity_id in r.json()['entities']:
 		r = r.json()['entities'][entity_id]
 		label = r['labels']['en']['value'] if 'en' in r['labels'].keys() else ""
-		properties = ['wid', 'label']
-		values = [entity_id, label]
+		descriptions = r['descriptions']['en']['value'] if 'en' in r['descriptions'].keys() else ""
+		properties = ['wid', 'label', 'description']
+		values = [entity_id, label,descriptions]
 		loop_on_properties(r, properties, values)
 		return [properties, values]
 	else:
-		print("Bad Url["+r.status_code+"]: ", url)
+		print("Bad Url["+str(r.status_code)+"]: ", url)
 		return None
 
 
@@ -165,10 +166,12 @@ def get_wiki_entity_rec(wid, db_conn, n):
 							for v in value:
 								if isinstance(v, str) and len(v) > 1 and v[0] == 'Q' and v[1:].isdigit():
 									get_wiki_entity_rec(wid=v, db_conn=db_conn, n=n-1)
+									#print('Link: ',wid, '--',data[0][idx+1],'->',v)
 									db_conn.link_father_son(father=wid, prop=data[0][idx+1], son=v)
 						else:
 							if isinstance(value, str) and len(value) > 1 and value[0] == 'Q' and value[1:].isdigit():
 								get_wiki_entity_rec(wid=value, db_conn=db_conn, n=n-1)
+								#print('Link: ',wid, '--',data[0][idx+1],'->',value)
 								db_conn.link_father_son(father=wid, prop=data[0][idx+1], son=value)
 			else:
 				print("Not found: ", url)
@@ -208,6 +211,7 @@ def download_n_hops_rec(starting_wids, db_conn, n):
 			with db_conn._driver.session() as session:
 				for idx, dirty in enumerate(prop_dirty):
 					if dirty:
+						#print('dirty add')
 						session.run("CREATE (n:WPI{wpi: $wpi, label: $label})",
 									wpi=prop_id[idx], label=prop_lab[idx])
 						prop_dirty[idx] = 0

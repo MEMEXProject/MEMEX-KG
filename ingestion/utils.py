@@ -9,7 +9,7 @@ Provides utility functions to other files including:
 Author: Feliks Hibraj {1}
 Licence: 
 Copyright: Copyright 2020, MEMEX Project
-Credits: [Sebastiano Vason {1}, Stuart James {2}]
+Credits: [Sebastiano Vascon {1}, Stuart James {2}]
 Affiliation: {1} Ca'Foscari University of Venice, {2} Istituto Italiano di Tecnologia 
 License: BSD
 Version: 1.0.0
@@ -22,10 +22,12 @@ This project has received funding from the European Union's Horizon 2020
 research and innovation programme under grant agreement No 870743.
 """
 import requests
+import argparse
 
 def getCityLimitsBoundingBox(city, expandBy=0.0):
     """
-    Retrieve from Open Street Map the limits of a city
+    Retrieve from Open Street Map the limits of a city.
+    
     :param city: name of city
     :param expandBy: percentage to enlage the region
     :return: bounding box for the city limits
@@ -50,6 +52,12 @@ def getCityLimitsBoundingBox(city, expandBy=0.0):
 
 
 def str2bool(v):
+    """
+    Convert string flags/booleans to boolean.
+    
+    :param v: string 
+    :return: boolean
+    """
     if isinstance(v, bool):
         return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -61,6 +69,13 @@ def str2bool(v):
 
 
 def valid_latlon(lat, long):
+    """
+    Validate latitude and longitude values.
+    
+    :param lat: latitude
+    :param long: longitude
+    :return: boolean
+    """
     if (lat >= -90) and (lat <= 90) and (long >= -180) and (long <= 180):
         return True
     return False

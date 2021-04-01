@@ -27,6 +27,7 @@ import os.path
 from os import path
 from ingestion.utils import getCityLimitsBoundingBox
 import config as cfg
+import time
 
 def latlongdist(center_long,center_lat, img_long,img_lat):
     from math import sin, cos, sqrt, atan2, radians
@@ -53,10 +54,17 @@ def aggregate(data, link, page_len, map):
     res = data
     last = data
     while len(last['features']) == page_len:
-        last,link = map.get_pagnation_resources(link)
+        try:
+            last,link = map.get_pagnation_resources(link)
+        except:
+            print("Error incurred, delaying...")
+            time.sleep(10)
+            last,link = map.get_pagnation_resources(link)
         res['features'] = res['features'] + last['features'] 
+        print("Collected ", len(res['features']))
         if link==None:
             break
+        time.sleep(2)
     return data
 
 
@@ -79,15 +87,27 @@ def query_only_id_bboxes(city, enlarge=True):
     
     d =latlongdist(left_most,top_most,right_most,bot_most)*1000
 
+
+    os.makedirs(cfg.mapillary["data_dir"], exist_ok=True)
+    city_dir_path = os.path.join(cfg.mapillary["data_dir"],city)
+    os.makedirs(city_dir_path , exist_ok=True)
+    seq_city_dir_path = os.path.join(city_dir_path, "seq")
+    os.makedirs(seq_city_dir_path , exist_ok=True)
+    img_city_dir_path = os.path.join(city_dir_path, "img")
+    os.makedirs(img_city_dir_path , exist_ok=True)
+    imgdata_city_dir_path = os.path.join(city_dir_path, "img_data")
+    os.makedirs(imgdata_city_dir_path , exist_ok=True)
+
     # Create a Mapillary Object
     map = Mapillary(cfg.mapillary["api_key"])
-    print(d)
-    closeto = str(center_lon) + ',' + str(center_lat)
-    data, next_img = map.search_images(closeto=closeto,radius=d, per_page=cfg.mapillary["per_page"])
-    data = aggregate(data,next_img,cfg.mapillary["per_page"],map)
-
-    # Download the beautified json for debugging
-    return_json_file(data, cfg.mapillary["data_dir"] + "result.json")
+    bbox= str(left_most) + "," + str(bot_most) + "," + str(right_most) + "," +str(top_most)
+    if not path.exists(os.path.join(city_dir_path,city+"_result.json")):
+        data, next_img = map.search_images(bbox=bbox, per_page=cfg.mapillary["per_page"])
+        data = aggregate(data,next_img,cfg.mapillary["per_page"],map)
+        # Download the beautified json for debugging
+        return_json_file(data, os.path.join(city_dir_path,city+"_result.json"))
+    else:
+        data = json.load(open(os.path.join(city_dir_path,city+"_result.json")))
 
     nodes = []
     
@@ -96,10 +116,15 @@ def query_only_id_bboxes(city, enlarge=True):
             print('Skip ', str(idx),'/',len(data["features"]))
             continue
         print('Processing ', str(idx),'/',len(data["features"]) ,' - ', f["properties"]["sequence_key"])
-        seq_raw_path = cfg.mapillary["data_dir"] + "seq/" + f["properties"]["sequence_key"] + ".json"
+
+        seq_raw_path = os.path.join(seq_city_dir_path, f["properties"]["sequence_key"] + ".json")
         if not path.exists(seq_raw_path):
-            print('Pulling ', str(idx),'/',len(data["features"]) ,' - ', f["properties"]["sequence_key"])
-            seq_raw_json = map.get_sequence_by_key(key=f["properties"]["sequence_key"])
+            try:
+                print('Pulling ', str(idx),'/',len(data["features"]) ,' - ', f["properties"]["sequence_key"])
+                seq_raw_json = map.get_sequence_by_key(key=f["properties"]["sequence_key"])
+            except:
+                print('Failed to acuire, skipping')
+                continue
             return_json_file(seq_raw_json, seq_raw_path)
         else:
             print('Loading ', str(idx),'/',len(data["features"]) ,' - ', f["properties"]["sequence_key"])
@@ -109,33 +134,37 @@ def query_only_id_bboxes(city, enlarge=True):
             
             # Check is in target area
             lon,lat = seq_raw_json["geometry"]["coordinates"][i]
-            if latlongdist(center_lon,center_lat,lon,lat) < (d):
-                img_path = 'data/img/' + img_id + ".jpg"
-                img_data_path = 'data/img_data/' + img_id + ".json"
-                if not path.exists('data/img/' + img_id + ".jpg"):
-                    print(' Pulling',img_id)
-                    download_image_by_key(img_id,2048,img_path)
-                if not path.exists(img_data_path):
-                    # Organise a custom Json to massively redundant but abstracts sequences
-                    img_data = {}
-                    img_data["coordinate_location"] = seq_raw_json["geometry"]["coordinates"][i]
-                    img_data["file_path"] = img_path
-                    img_data["image_key"] = img_id
-                    img_data["camera_make"] = seq_raw_json["properties"]["camera_make"]
-                    img_data["captured_at"] = seq_raw_json["properties"]["captured_at"]
-                    img_data["created_at"] = seq_raw_json["properties"]["created_at"]
-                    img_data["pano"] = seq_raw_json["properties"]["pano"]
-                    img_data["user_key"] = seq_raw_json["properties"]["user_key"]
-                    img_data["username"] = seq_raw_json["properties"]["username"]
-                    with open(img_data_path, "w") as write_file:
-                        json.dump(img_data ,write_file,indent=2)
-                    # Add to Knowledge Graph
-                    keys = []
-                    values = []
-                    for k,v in img_data:
-                        keys.append(k)
-                        values.append(v)
-                    nodes.append( [keys,values])
+        
+            img_path = os.path.join(img_city_dir_path, img_id + ".jpg")
+            img_data_path = os.path.join(imgdata_city_dir_path, img_id + ".json")
+            if not path.exists(img_path):
+                print(' Pulling',img_id)
+                download_image_by_key(img_id,2048,img_path)
+            if not path.exists(img_data_path):
+                # Organise a custom Json to massively redundant but abstracts sequences
+                img_data = {}
+                img_data["coordinate_location"] = seq_raw_json["geometry"]["coordinates"][i]
+                img_data["file_path"] = img_path
+                img_data["image_key"] = img_id
+                img_data["camera_make"] = seq_raw_json["properties"]["camera_make"]
+                img_data["captured_at"] = seq_raw_json["properties"]["captured_at"]
+                img_data["created_at"] = seq_raw_json["properties"]["created_at"]
+                img_data["pano"] = seq_raw_json["properties"]["pano"]
+                img_data["user_key"] = seq_raw_json["properties"]["user_key"]
+                img_data["username"] = seq_raw_json["properties"]["username"]
+                img_data["cas"] = seq_raw_json["properties"]["coordinateProperties"]["cas"][i]
+                
+                with open(img_data_path, "w") as write_file:
+                    json.dump(img_data ,write_file,indent=2)
+            else:
+                img_data = json.load(open(img_data_path))
+            # Add to Knowledge Graph
+            keys = []
+            values = []
+            for k,v in img_data.items():
+                keys.append(k)
+                values.append(v)
+            nodes.append( [keys,values])
 
     return nodes
 

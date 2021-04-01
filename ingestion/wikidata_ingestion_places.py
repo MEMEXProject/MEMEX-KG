@@ -1,7 +1,7 @@
 
 """
 -----
-Name: mapillary_ingestion_places.py
+Name: wikidata_ingestion_places.py
 Description:
 Pulls data from Wikidata API based on Longitude and Latitude and Location returns a list
 to be inserted to Neo4j.
@@ -9,7 +9,7 @@ to be inserted to Neo4j.
 Author: Feliks Hibraj {1}
 Licence: 
 Copyright: Copyright 2020, MEMEX Project
-Credits: [Sebastiano Vason {1}, Stuart James {2}]
+Credits: [Sebastiano Vascon {1}, Stuart James {2}]
 Affiliation: {1} Ca'Foscari University of Venice, {2} Istituto Italiano di Tecnologia 
 License: BSD
 Version: 1.0.0
@@ -23,11 +23,12 @@ research and innovation programme under grant agreement No 870743.
 """
 import pywikibot
 import pywikibot.data.sparql as spq
-import requests
 from ingestion.utils import getCityLimitsBoundingBox
 
 def single_bbox_only_id_query(sw_x, sw_y, ne_x, ne_y):
     """
+    Retrieves a list of wikidata entity ids contained on the specified bounding box.
+    
     :param sw_x: South-West x coordinate
     :param sw_y: South-West y coordinate
     :param ne_x: North-East x coordinate
@@ -44,6 +45,7 @@ def single_bbox_only_id_query(sw_x, sw_y, ne_x, ne_y):
         }}
     }}
     """
+    print('Run box:',sw_x, sw_y, ne_x, ne_y)
     wikidata_site = pywikibot.Site("wikidata", "wikidata")
     query_object = spq.SparqlQuery(repo=wikidata_site)
     data = query_object.select(query)  # returns a list, where data[0] is the first item,

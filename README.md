@@ -3,8 +3,10 @@ Abstract:
 The MEMEX-KG creates a Geolocalised Cultural Heritage Knowledge Graph for exploitation within the MEMEX Project. Currently it provides tools for ingestion from 3rd Party Sources - Wikidata (https://www.wikidata.org/), Europeana(https://www.europeana.eu/), Mapillary (http://Mapillary.com) and a Custom Form  (powered by Wikidata categories and google Forms); to construct a graph rooted in the pilot areas. The MEMEX-KG focuses on tangible objects that can be localised and connects to intangible content collected and created across the project duration. 
 
 Authors: \
+Hebatallah Mohamed, Ca'Foscari University of Venice \
+Sebastiano Vascon, Ca'Foscari University of Venice \
+Diego Pilutti, Ca'Foscari University of Venice \
 Feliks Hibraj, Ca'Foscari University of Venice \
-Sebastiano Vason, Ca'Foscari University of Venice \
 Stuart James, Istituto Italiano di Tecnologia 
 
 
@@ -19,18 +21,9 @@ Stuart James, Istituto Italiano di Tecnologia
 	- Now you have a neo4j sandbox project, which you can access with credentials found in "Connection details",
 	in particular, use "Bolt URL" as the field "uri" in file credentials.txt, use "Username" and "Password" for the
 	remaining 2 fields of file credentials.txt.
-2. Create a conda environment containing the necessary libraries
+2. Install the dependencies listed in the the requirements.txt
 ```
-conda env create --file kg_env.yml --name memex_kg
-conda activate memex_kg
-```
-
-### [Optional] pymapillary Install
-We adapt on the pymapillary (https://github.com/khmurakami/pymapillary) api therefore, to use the Mapillary ingestion you will need to install our version (in ingestion/pymapillary-memex/).
-Follow these instructions to install:
-```
-cd ingestion/pymapillarymemex/
-python setup.py install
+pip3 install -r requirements.txt
 ```
 
 ## Config
@@ -44,17 +37,12 @@ neo4j = {
     "encrypted": False
 }
 
-
 europeana = {
-    "token":"key",
+    "europeana-token":"key",
+    "tagme-token":"key",
     "data_dir": "data/europeana/"
 }
 
-mapillary = {
-    "api_key": "key",
-    "per_page": 100,
-    "data_dir": "data/mapillary/"
-}
 ```
 
 For Neo4j the config correspond to:
@@ -71,47 +59,97 @@ For detailed usage help run:
 python main.py -h 
 ```
 
-In addition to clear the Neo4j Knowledge Graph run
+To clear the Neo4j Knowledge Graph run:
 ```
 python main.py  --mode 5
 ```
+
 Below we outline example configuration settings and commands for the respective sources. 
 
 
-### Wikidata
-Example Command:
+## Wikidata
+
+Wikidata Ingestion Example Command:
 ```
 python main.py  --mode 0 --city barcelona --hops 2
 ```
+The following figure shows part of the ingested KG, where the orange nodes represent entites of type "Knowledge" and the cyan ones are of type "Place".
 
-### Europeana
+<img src="images/wikidata.png" width="400" height="400">
+
+
+## Europeana
 Europeana Settings: [in config.py]:
-- token: Requested from Europeana
+- europeana_token: Requested from Europeana API
+- tagme_token: Requested from TagMe API
 - data_dir": Store of json files and images from Europeana
 
-Example Command:
+Europeana Ingestion Example Command:
 ```
 python main.py  --mode 2 --city barcelona
 ```
 
-
-### Mapillary
-
-Mapillary Settings: [in config.py]:
-- api_key: Requested from Mapillary
-- per_page: Caching setting (e.g. 100)
-- data_dir: Store of json files and images from Mapillary
-
-Example Command:
+In order to link Europeana entities with the already ingested Wikidata entities, during the crawling process, you should add --link_to_nodes True: 
 ```
-python main.py  --mode 3 --city barcelona
+python main.py  --mode 2 --city barcelona --link_to_nodes True
 ```
 
-### Custom Form 
+The linking is performed by tagging the descriptions in Europeana entities using TagMe API (https://sobigdata.d4science.org/web/tagme/tagme-help), then relating the tags with the wikidata entites in the KG, by adding a new relation called "mentions".
+
+<img src="images/europeana-linking.png" width="350" height="300">
+
+## Integrating Wikipedia Descriptions and Embeddings
+It is possible to integrate short descriptions from Wikipedia and the corresponding semantic embeddings in the KG.
+First, download the Word2Vec model needed for the KG search functionality, and place it under the "models" folder.
 ```
-python main.py  --mode 4
+wget http://magnitude.plasticity.ai/word2vec/light/GoogleNews-vectors-negative300.magnitude
 ```
-The output can then be used [Custom Form](README_Custom_Form.md) using the google form service.
+
+Integrating Wikipedia Descriptions Example Command:
+```
+python main.py  --mode 7 --lang "en" --overwrite_embedding True
+```
+This instruction needs to be run after the ingestion of wikidata or europeana. Inserting this information enables for effective and efficient retrieval of nodes in the KG based on sentence similarity.
+
+**Parameters**
+
+* **--lang** : string corresponding to language of the description to be ingested, default "en"
+* **--overwrite_embedding** : boolean selecting whether to overwrite descriptions and embeddings on the Knowledge Graph if already present, default True
+
+
+
+## KG Search
+
+Before starting with the KG Search, you should first execute the following command to generate the full-text indexing:
+```
+python main.py  --mode 9
+```
+
+then you have to enable the Graph Data Science (GDS) and the APOC Libraries.
+
+GDS is mandatory to enable the semantic search.
+
+KG Search Example Command:
+```
+python main.py  --mode 8 --lat 41.403706 --long 2.174347 --k 10 --query "modern art and sagrada familia" --meters 5000
+```
+Running this command performs a search in the knowledge graph starting from localisation data (--lat --long) and/or free text input (--query), which retrieve the top-K nodes in the KG ranked according to sentence similarity and distance (within the radial distance of --meters from the initial point). 
+
+If the free text parameter is not provided, the command returns the top-K nodes according to distance proximity. 
+
+If the localisation data is not provided but free text is given as an input, the output will be the top-K nodes according to similarities between the input text and the descriptions of the nodes in the KG.
+
+Note: to correctly deploy the above functionalities, textual descriptions and embeddings should be already present in the KG. (see mode 7)
+
+**Parameters**
+
+* **--lat** : float corresponding to latitude coordinates
+* **--long** : float corresponding to longitude coordinates
+* **--k** : int corresponding to the top-K elements to be retrieved, default k=10
+* **--query** : string corresponding to free text given in input
+* **--meters** : integer corresponding to the radial distance from the intial point within which to consider the nodes, default 5000
+* **--search_mode** : string "semantic" or "fulltext", default search_mode="fulltext"
+
 
 ## Tested on 
  - Ubuntu 18.04 LTS
