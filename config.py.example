@@ -27,6 +27,16 @@ neo4j = {
     "encrypted": False
 }
 
+api = {
+    "host":"127.0.0.1",
+    "port":5000,   
+    "encrypted": False,
+    "username": "memex",
+    "password":"secret",
+    "cert": "ssl/cert.pem",
+    "key":"ssl/key.pem",    
+}
+
 europeana = {
     "europeana_token":"xxx",
     "tagme_token":"xxx",
@@ -37,4 +47,8 @@ mapillary = {
     "api_key": "xxx",
     "per_page": 100,
     "data_dir": "data/mapillary/"
+}
+
+local = {
+    "additional_country": ["fr","pt","es"]
 }

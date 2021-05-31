@@ -57,7 +57,7 @@ def wikidata_ingest_pilots(hops, cities):
         for line in data:
             # line is a wid of the format "wd:Q* ", we need only "Q* "
             starting_urls.append(line['place'].split("/")[-1])
-        rhi.download_n_hops_rec(starting_urls, db_conn, hops)
+        rhi.download_n_hops_rec(starting_urls, db_conn, hops,additional_languages=cfg.local["additional_country"])
     db_conn.close()
 
 
@@ -265,8 +265,10 @@ if __name__ == "__main__":
         db_conn.close()
 
     elif args.mode == 7:# description and embeddings
-        nodes = db_desc.get_wids(overwrite=args.overwrite_embedding)
+        nodes = db_desc.get_wids(overwrite=args.overwrite_embedding, with_image=False)
         db_desc.update_desc_emb(nodes, lang=args.lang)
+        nodes = db_desc.get_wids(overwrite=args.overwrite_embedding, with_image=True)
+        db_desc.update_visual_desc_emb(nodes)
         
     elif args.mode == 8:  # Search Mode
         if args.query:
@@ -276,7 +278,7 @@ if __name__ == "__main__":
                 desc = args.query
                 n = args.k
                 meters = args.meters
-                results = db_search.get_top_n_closest(args.search_mode, desc, n, long, lat, meters)
+                results = db_search.get_top_similar_closest(args.search_mode, desc, n, long, lat, meters)
                 dict_res = {}
                 for i in range(len(results)):
                     temp = {}
@@ -291,7 +293,7 @@ if __name__ == "__main__":
             else:
                 desc = args.query
                 n = args.k
-                results = db_search.get_top_n_sim(args.search_mode, desc, n)
+                results = db_search.get_top_similar(args.search_mode, desc, n)
                 dict_res = {}
                 for i in range(len(results)):
                     temp = {}
@@ -301,7 +303,6 @@ if __name__ == "__main__":
                     temp['sim'] = results[i][2]
                     dict_res[i] = temp
                 print(dict_res)
-
         else:
             if not args.long or not args.lat:
                 print("please specify correct parameters for search")
@@ -310,7 +311,7 @@ if __name__ == "__main__":
                 long = float(args.long)
                 n = args.k
                 meters = args.meters
-                results = db_search.get_top_n_radius(n, long, lat, meters)
+                results = db_search.get_top_closest(n, long, lat, meters)
                 dict_res = {}
                 for i in range(len(results)):
                     temp = {}

@@ -24,13 +24,15 @@ import requests
 import hashlib
 import re
 from tqdm import tqdm
+import json
 
 prop_id = []  # list of wikidata property ids, e.g.: (P31, P625, ...) recorder so far
 prop_lab = []  # list of corresponding 'en' labels, e.g.: ('instance_of', 'coordinate_location', ...)
+prop_loc = [] # The locality label  
 prop_dirty = []  # dirty bit vector for the list of properties, {0: already on db, 1: not present on db}
 
 
-def get_property_label(prop):
+def get_property_labels(prop, additional_languages=["fr","pt","es"]):
 	"""
 	Given a wikidata property id, it return a cleaned label retreived from wikidata.
 	:param prop: Wikidata Property ID
@@ -38,17 +40,24 @@ def get_property_label(prop):
 	"""
 	for idx, v in enumerate(prop_id):
 		if v == prop:
-			return prop_lab[idx]
+			return (prop_lab[idx], prop_loc[idx])
 	url = f"https://www.wikidata.org/wiki/Special:EntityData/{prop}.json"
 	r = requests.get(url=url)
-	label = r.json()['entities'][prop]['labels']['en']['value']
-	label = re.sub('[^a-zA-Z0-9 \n\.]', '', label)
+	labels = r.json()['entities'][prop]['labels']
+
+	label_en = labels['en']['value']
+	label_loc = [("en", label_en)]
+	for lang in additional_languages:
+		label_loc.append((lang, labels[lang]['value'] if lang in labels else label_en))
+
+	label = re.sub('[^a-zA-Z0-9 \n\.]', '', label_en)
 	label = label.replace(" ", "_")
 	label = label.replace("3", "three")
 	prop_id.append(prop)
 	prop_lab.append(label)
+	prop_loc.append(label_loc)
 	prop_dirty.append(1)
-	return label
+	return (label, label_loc)
 
 
 def traverse_tree(claim_dict):
@@ -104,7 +113,7 @@ def get_wikidata_value(claim):
 	return res
 
 
-def loop_on_properties(r, properties, values):
+def loop_on_properties(r, properties, properties_locale, values,additional_languages):
 	"""
 	It loops on all properties and call the corresponding function to extract
 	a value from each claim.
@@ -116,12 +125,14 @@ def loop_on_properties(r, properties, values):
 	for key in r:
 		value = get_wikidata_value(r[key])
 		if value:
-			properties.append(get_property_label(key))
+			prop, proc_local = get_property_labels(key,additional_languages)
+			properties.append(prop)
+			properties_locale.append(proc_local)
 			values.append(value)
 
 
 # url = "http://www.wikidata.org/wiki/Special:EntityData/Q42"
-def extract_all_info(url):
+def extract_all_info(url,additional_languages=["fr","pt","es"]):
 	"""
 	Requests a wikidata entity and extracts all the claims (properties) for that node.
 	
@@ -137,14 +148,23 @@ def extract_all_info(url):
 		descriptions = r['descriptions']['en']['value'] if 'en' in r['descriptions'].keys() else ""
 		properties = ['wid', 'label', 'description']
 		values = [entity_id, label,descriptions]
-		loop_on_properties(r, properties, values)
-		return [properties, values]
+		properties_locale = [[],[],[]] 
+		for lang in additional_languages:
+			properties.append('label_' + lang)
+			values.append( r['labels'][lang]['value'] if lang in r['labels'].keys() else values[1] )
+			properties_locale.append([])
+			properties.append('description_' + lang)
+			values.append( r['descriptions'][lang]['value'] if lang in r['descriptions'].keys() else values[2] )
+			properties_locale.append([])
+		
+		loop_on_properties(r, properties,properties_locale, values,additional_languages)
+		return [properties,properties_locale, values]
 	else:
 		print("Bad Url["+str(r.status_code)+"]: ", url)
 		return None
 
 
-def get_wiki_entity_rec(wid, db_conn, n):
+def get_wiki_entity_rec(wid, db_conn, n,additional_languages=["fr","pt","es"]):
 	"""
 	Recursive function responsible for creating the node corresponding to 'wid', 
 	recursively calling the function for all its sons and creating the corresponding edges with them.
@@ -157,22 +177,22 @@ def get_wiki_entity_rec(wid, db_conn, n):
 	if n > 0:
 		if not db_conn.already_present(wid):
 			url = f"http://www.wikidata.org/wiki/Special:EntityData/{wid}"
-			data = extract_all_info(url)
+			data = extract_all_info(url,additional_languages)
 			if data:
 				db_conn.queue_insert_node(data)
 				if n > 1:
-					for idx, value in enumerate(data[1][1:]):
+					for idx, value in enumerate(data[2][1:]):
 						if type(value) is list:
 							for v in value:
 								if isinstance(v, str) and len(v) > 1 and v[0] == 'Q' and v[1:].isdigit():
-									get_wiki_entity_rec(wid=v, db_conn=db_conn, n=n-1)
+									get_wiki_entity_rec(wid=v, db_conn=db_conn, n=n-1,additional_languages=additional_languages)
 									#print('Link: ',wid, '--',data[0][idx+1],'->',v)
-									db_conn.link_father_son(father=wid, prop=data[0][idx+1], son=v)
+									db_conn.link_father_son(father=wid, prop=data[0][idx+1],prop_local=data[1][idx+1], son=v)
 						else:
 							if isinstance(value, str) and len(value) > 1 and value[0] == 'Q' and value[1:].isdigit():
-								get_wiki_entity_rec(wid=value, db_conn=db_conn, n=n-1)
+								get_wiki_entity_rec(wid=value, db_conn=db_conn, n=n-1,additional_languages=additional_languages)
 								#print('Link: ',wid, '--',data[0][idx+1],'->',value)
-								db_conn.link_father_son(father=wid, prop=data[0][idx+1], son=value)
+								db_conn.link_father_son(father=wid, prop=data[0][idx+1],prop_local=data[1][idx+1], son=value)
 			else:
 				print("Not found: ", url)
 		else:
@@ -181,7 +201,7 @@ def get_wiki_entity_rec(wid, db_conn, n):
 	return
 
 
-def download_n_hops_rec(starting_wids, db_conn, n):
+def download_n_hops_rec(starting_wids, db_conn, n,additional_languages=["fr","pt","es"]):
 	"""
 	First it retrieves the list of mappings WPI(Wikidata Property ID, Corresponding Property Label),
 	which is stored on the db for convenience, in order to avoid querying wikidata everytime.
@@ -195,16 +215,17 @@ def download_n_hops_rec(starting_wids, db_conn, n):
 	"""
 	# update the mapping of wikidata property ids to their labels (vectors prop_id, prop_lab)
 	with db_conn._driver.session() as session:
-		res = session.run("MATCH (n:WPI) return n.wpi as wpi, n.label as label")
+		res = session.run("MATCH (n:WPI) return n.wpi as wpi, n.label as label, n.local as local")
 		for line in res:
 			prop_id.append(line['wpi'])
 			prop_lab.append(line['label'])
+			prop_loc.append(json.loads(line['local']))
 			prop_dirty.append(0)
 	# start processing all entities present in 'starting_wids'
 	print("Processing ", len(starting_wids), " entities...")
 	downloaded = 0
 	for wid in tqdm(starting_wids):
-		get_wiki_entity_rec(wid, db_conn, n)
+		get_wiki_entity_rec(wid, db_conn, n,additional_languages)
 		downloaded += 1
 		# print("Downloaded: ", downloaded)
 		if downloaded % 100 == 0:
@@ -212,6 +233,6 @@ def download_n_hops_rec(starting_wids, db_conn, n):
 				for idx, dirty in enumerate(prop_dirty):
 					if dirty:
 						#print('dirty add')
-						session.run("CREATE (n:WPI{wpi: $wpi, label: $label})",
-									wpi=prop_id[idx], label=prop_lab[idx])
+						session.run("CREATE (n:WPI{wpi: $wpi, label: $label, local: $loc })",
+									wpi=prop_id[idx], label=prop_lab[idx], loc=json.dumps(prop_loc[idx]) )
 						prop_dirty[idx] = 0
