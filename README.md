@@ -21,7 +21,7 @@ Stuart James, Istituto Italiano di Tecnologia
 	- Now you have a neo4j sandbox project, which you can access with credentials found in "Connection details",
 	in particular, use "Bolt URL" as the field "uri" in file credentials.txt, use "Username" and "Password" for the
 	remaining 2 fields of file credentials.txt.
-3. Install the APOC and Neo4j Streams plugin. 	
+3. Install the APOC and Neo4j Streams plugins. 	
 4. Install the dependencies listed in the the requirements.txt
 ```
 pip3 install -r requirements.txt
