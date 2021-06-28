@@ -14,15 +14,15 @@ Stuart James, Istituto Italiano di Tecnologia
 1. Install the latest version of Neo4j (4.0+)
 	- Download the latest version of Neo4j at https://neo4j.com/download/
 	- Run the downloaded file, installation process follows
-1. (Alternative) Set up a Neo4j sandbox:
+2. (Alternative) Set up a Neo4j sandbox:
 	- Visit https://sandbox.neo4j.com/
 	- Login
 	- Click on "Start a new project", choose the "Blank Project" and confirm by pressing "Launch the project"
 	- Now you have a neo4j sandbox project, which you can access with credentials found in "Connection details",
 	in particular, use "Bolt URL" as the field "uri" in file credentials.txt, use "Username" and "Password" for the
 	remaining 2 fields of file credentials.txt.
-2. Install the APOC plugin of Neo4j. 	
-3. Install the dependencies listed in the the requirements.txt
+3. Install the APOC and Neo4j Streams plugin. 	
+4. Install the dependencies listed in the the requirements.txt
 ```
 pip3 install -r requirements.txt
 ```
