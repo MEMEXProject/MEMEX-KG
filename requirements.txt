@@ -7,7 +7,7 @@ wikidata==0.7.0
 pymagnitude==0.1.143
 Flask==1.1.2
 wget==3.2
-PyJWT==2.0.1
+PyJWT==2.4.0
 numpy>=1.14.0
 xxhash>=1.0.1
 fasteners>=0.14.1
