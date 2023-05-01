@@ -5,7 +5,7 @@ wget==3.2
 tagme==0.1.3
 wikidata==0.7.0
 pymagnitude==0.1.143
-Flask==1.1.2
+Flask==2.3.2
 wget==3.2
 PyJWT==2.0.1
 numpy>=1.14.0
